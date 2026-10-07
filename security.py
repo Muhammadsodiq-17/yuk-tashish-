@@ -15,7 +15,7 @@ def check_password(parol, hash_matn):
     return bcrypt.checkpw(parol.encode("utf-8"), hash_matn.encode("utf-8"))
 
 
-Kalit = "Suniy-intelekt-orqali-real-loyihalarni-yaratish "
+Kalit = "Suniy-intelekt-orqali-kodlarni-va-dasturlash-tillarini-o'rganish"
 
 
 def create_token(user_id, rol):
