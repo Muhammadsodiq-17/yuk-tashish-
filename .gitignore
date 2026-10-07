@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# PyCharm sozlamalari
+.idea/
+
+# Baza fayllari
+*.db
+*.sqbpro
