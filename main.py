@@ -3,9 +3,9 @@ from database import get_connection
 from fastapi import FastAPI, HTTPException
 from schemas import RegisterRequest
 from security import hash_password
-from schemas import  LoginRequest
-from  security import  check_password
-from  security import  create_token
+from schemas import LoginRequest
+from security import check_password
+from security import create_token
 
 app = FastAPI()
 
@@ -50,17 +50,15 @@ def register(data: RegisterRequest):
     yangi_id = cursor.lastrowid
     conn.close()
     return {"id": yangi_id, "ism": data.ism}
+
+
 @app.post("/auth/login")
-def login(data:LoginRequest):
-    conn=get_connection()
-    mavjud=conn.execute(
-    "SELECT id, parol_hesh, rol FROM users WHERE telefon_raqam =?",(data.telefon_raqam)).fetchone()
-    if not mavjud :
-        conn.close()
+def login(data: LoginRequest):
+    conn = get_connection()
+    mavjud = conn.execute(
+        "SELECT id, parol_hesh, rol FROM users WHERE telefon_raqam =?", (data.telefon_raqam,)).fetchone()
+    conn.close()
+
+    if not mavjud or not check_password(data.parol, mavjud["parol_hesh"]):
         raise HTTPException(status_code=401, detail="Telefon yoki parol noto'g'ri")
-
-    else:
-         return {"token": create_token(user_id="",rol="")}
-
-
-
+    return {"token": create_token(mavjud["id"], mavjud["rol"])}
