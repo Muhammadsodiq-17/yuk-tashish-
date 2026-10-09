@@ -225,7 +225,5 @@ __marimo__/
 *.db
 *.sqbpro
 .venv/
-.idea/
-__pycache__/
-*.db
-.env
+
+
