@@ -1,8 +1,9 @@
+import datetime
 import bcrypt
 import jwt
-import datetime
 import os
-from
+from dotenv import load_dotenv
+
 load_dotenv()
 Kalit = os.getenv("KALIT")
 
@@ -17,12 +18,9 @@ def check_password(parol, hash_matn):
     return bcrypt.checkpw(parol.encode("utf-8"), hash_matn.encode("utf-8"))
 
 
-
-
-
 def create_token(user_id, rol):
     exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
     malumot = {"user_id": user_id,
                "rol": rol,
-               "exp":exp}
+               "exp": exp}
     return jwt.encode(malumot, Kalit, algorithm="HS256")
