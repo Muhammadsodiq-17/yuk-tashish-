@@ -24,3 +24,5 @@ def create_token(user_id, rol):
                "rol": rol,
                "exp": exp}
     return jwt.encode(malumot, Kalit, algorithm="HS256")
+def decode_token(token):
+    return  jwt.decode(token, Kalit, algorithms=["HS256"])

@@ -6,6 +6,8 @@ from security import hash_password
 from schemas import LoginRequest
 from security import check_password
 from security import create_token
+from fastapi import Depends
+from dependencies import get_current_user
 
 app = FastAPI()
 
@@ -62,3 +64,26 @@ def login(data: LoginRequest):
     if not mavjud or not check_password(data.parol, mavjud["parol_hesh"]):
         raise HTTPException(status_code=401, detail="Telefon yoki parol noto'g'ri")
     return {"token": create_token(mavjud["id"], mavjud["rol"])}
+
+
+@app.get("/users/me")
+def read_me(user: dict = Depends(get_current_user)):
+    return user
+
+
+
+
+from dependencies import get_current_user, require_role
+
+
+@app.get("/test/client")
+def test_client(user: dict = Depends(require_role("client"))):
+    return {"xabar": "Siz clientsiz", "user": user}
+
+
+@app.get("/test/driver")
+def test_driver(user: dict = Depends(require_role("driver"))):
+    return {"xabar": "Siz driversiz", "user": user}
+
+
+
