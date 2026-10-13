@@ -1,13 +1,10 @@
 from fastapi import FastAPI
 from database import get_connection
-from fastapi import FastAPI, HTTPException
-from schemas import RegisterRequest
-from security import hash_password
-from schemas import LoginRequest
-from security import check_password
-from security import create_token
-from fastapi import Depends
-from dependencies import get_current_user
+from fastapi import FastAPI, HTTPException,Depends
+from schemas import RegisterRequest ,LoginRequest,CargoPostCreate
+from security import hash_password,check_password,create_token
+from dependencies import get_current_user, require_role
+
 
 app = FastAPI()
 
@@ -71,11 +68,6 @@ def read_me(user: dict = Depends(get_current_user)):
     return user
 
 
-
-
-from dependencies import get_current_user, require_role
-
-
 @app.get("/test/client")
 def test_client(user: dict = Depends(require_role("client"))):
     return {"xabar": "Siz clientsiz", "user": user}
@@ -86,4 +78,62 @@ def test_driver(user: dict = Depends(require_role("driver"))):
     return {"xabar": "Siz driversiz", "user": user}
 
 
+@app.post("/cargo-posts", status_code=201)
+def create_cargo_post(
+        data: CargoPostCreate,
+        user: dict = Depends(require_role("client")),
+):
+    conn = get_connection()
+    cursor = conn.execute(
+        "INSERT INTO cargo_post "
+        "(mijoz_id, olish_manzili, yetkazish_manzili, yuk_turi, ogirligi, taklifqilingan_narx) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            user["id"],
+            data.olish_manzili,
+            data.yetkazish_manzili,
+            data.yuk_turi,
+            data.ogirligi,
+            data.taklifqilingan_narx,
+        ),
+    )
+    conn.commit()
+    yangi_id = cursor.lastrowid
+    conn.close()
+    return {"id": yangi_id}
 
+
+
+@app.get("/cargo-posts")
+def list_cargo_posts(
+    olish: str | None = None,
+    yetkazish: str | None = None,
+    max_ogirlik: float | None = None,
+    user: dict = Depends(require_role("driver")),
+):
+    shartlar = ["holati = 'open'"]
+    qiymatlar = []
+
+    if olish is not None:
+        shartlar.append("olish_manzili LIKE ?")
+        qiymatlar.append(f"%{olish}%")
+    if yetkazish is not None:
+        shartlar.append("yetkazish_manzili LIKE ?")
+        qiymatlar.append(f"%{yetkazish}%")
+    if max_ogirlik is not None:
+        shartlar.append("ogirligi <= ?")
+        qiymatlar.append(max_ogirlik)
+
+
+
+    sql = (
+        "SELECT id, olish_manzili, yetkazish_manzili, yuk_turi, ogirligi, "
+        "taklifqilingan_narx, yaratilgan_vaqt FROM cargo_post WHERE "
+        + " AND ".join(shartlar)
+        + " ORDER BY id DESC"
+    )
+
+    conn = get_connection()
+    rows = conn.execute(sql, qiymatlar).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
