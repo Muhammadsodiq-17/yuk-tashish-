@@ -20,4 +20,7 @@ class CargoPostCreate(BaseModel):
     yuk_turi: str
     ogirligi: float = Field(gt=0)
     taklifqilingan_narx: int = Field(gt=0)
+class OfferCreate(BaseModel):
+   narx: int = Field(gt=0)
+   izoh: str | None = None
 

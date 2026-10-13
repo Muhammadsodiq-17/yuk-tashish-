@@ -1,10 +1,10 @@
 from fastapi import FastAPI
+import sqlite3
 from database import get_connection
-from fastapi import FastAPI, HTTPException,Depends
-from schemas import RegisterRequest ,LoginRequest,CargoPostCreate
-from security import hash_password,check_password,create_token
+from fastapi import FastAPI, HTTPException, Depends
+from schemas import RegisterRequest, LoginRequest, CargoPostCreate, OfferCreate
+from security import hash_password, check_password, create_token
 from dependencies import get_current_user, require_role
-
 
 app = FastAPI()
 
@@ -103,13 +103,12 @@ def create_cargo_post(
     return {"id": yangi_id}
 
 
-
 @app.get("/cargo-posts")
 def list_cargo_posts(
-    olish: str | None = None,
-    yetkazish: str | None = None,
-    max_ogirlik: float | None = None,
-    user: dict = Depends(require_role("driver")),
+        olish: str | None = None,
+        yetkazish: str | None = None,
+        max_ogirlik: float | None = None,
+        user: dict = Depends(require_role("driver")),
 ):
     shartlar = ["holati = 'open'"]
     qiymatlar = []
@@ -124,16 +123,50 @@ def list_cargo_posts(
         shartlar.append("ogirligi <= ?")
         qiymatlar.append(max_ogirlik)
 
-
-
     sql = (
-        "SELECT id, olish_manzili, yetkazish_manzili, yuk_turi, ogirligi, "
-        "taklifqilingan_narx, yaratilgan_vaqt FROM cargo_post WHERE "
-        + " AND ".join(shartlar)
-        + " ORDER BY id DESC"
+            "SELECT id, olish_manzili, yetkazish_manzili, yuk_turi, ogirligi, "
+            "taklifqilingan_narx, yaratilgan_vaqt FROM cargo_post WHERE "
+            + " AND ".join(shartlar)
+            + " ORDER BY id DESC"
     )
 
     conn = get_connection()
     rows = conn.execute(sql, qiymatlar).fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+@app.post("/cargo-posts/{post_id}/offers", status_code=201)
+def create_offer(
+        post_id: int,
+        data: OfferCreate,
+        user: dict = Depends(require_role("driver")),
+):
+    conn = get_connection()
+    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+
+        post = conn.execute(
+            "SELECT holati FROM cargo_post WHERE id = ?", (post_id,)
+        ).fetchone()
+        if post is None:
+            raise HTTPException(status_code=404, detail="E'lon topilmadi")
+        if post[0] != "open":
+            raise HTTPException(status_code=409, detail="E'lon endi ochiq emas")
+
+        try:
+            cur = conn.execute(
+                "INSERT INTO offers (cargo_post_id, haydovchi_id, narx, izoh) "
+                "VALUES (?, ?, ?, ?)",
+                (post_id, user["id"], data.narx, data.izoh),
+            )
+        except sqlite3.IntegrityError:
+            raise HTTPException(
+                status_code=409,
+                detail="Siz bu e'longa allaqachon taklif yuborgansiz",
+            )
+
+        conn.commit()
+        return {"id": cur.lastrowid}
+    finally:
+        conn.close()
