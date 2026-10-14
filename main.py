@@ -1,3 +1,5 @@
+from idlelib.debugger_r import close_subprocess_debugger
+
 from fastapi import FastAPI
 import sqlite3
 from database import get_connection
@@ -5,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from schemas import RegisterRequest, LoginRequest, CargoPostCreate, OfferCreate
 from security import hash_password, check_password, create_token
 from dependencies import get_current_user, require_role
+from contextlib import closing
 
 app = FastAPI()
 
@@ -170,3 +173,29 @@ def create_offer(
         return {"id": cur.lastrowid}
     finally:
         conn.close()
+
+@app.get("/cargo-posts/{post_id}/offers")
+def list_offers(
+        post_id: int,
+        user: dict = Depends(require_role("client")),
+):
+    with closing(get_connection()) as conn:
+        post = conn.execute(
+            "SELECT mijoz_id FROM cargo_post WHERE id = ?", (post_id,)
+        ).fetchone()
+
+        # Yo'q e'lon va birovning e'loni bir xil javob beradi (404)
+        if post is None or post["mijoz_id"] != user["id"]:
+            raise HTTPException(status_code=404, detail="E'lon topilmadi")
+
+        rows = conn.execute(
+            "SELECT o.id, o.narx, o.izoh, o.holati, o.yaratilgan_vaqt, "
+            "       u.ism, u.familya "
+            "FROM offers o "
+            "JOIN users u ON u.id = o.haydovchi_id "
+            "WHERE o.cargo_post_id = ? "
+            "ORDER BY o.narx ASC",
+            (post_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
